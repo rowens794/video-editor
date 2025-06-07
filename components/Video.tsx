@@ -348,7 +348,7 @@ export default function ClipEditor() {
                   clip={clip}
                   updateClip={updateClip}
                   loadClipVideo={loadClipVideo}
-                  onDelete={deleteClip}
+                  deleteClip={deleteClip}
                   renderTimelineSlider={renderTimelineSlider}
                 />
               ))}
