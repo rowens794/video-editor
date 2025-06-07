@@ -245,17 +245,24 @@ export default function ClipEditor() {
     onUpdate?: (field: keyof Clip, value: number) => void
   ) => {
     const max = videoDuration;
-    const width = 300 * timelineZoom;
+    const width = 300;
+    const viewRange = max / timelineZoom;
+    const center = (clip.start + clip.end) / 2;
+    const rangeStart = Math.min(
+      Math.max(0, center - viewRange / 2),
+      max - viewRange
+    );
     const markers = ["start", "audioStart", "audioEnd", "end"] as const;
 
     return (
       <div className="space-y-2">
         <div
-          className="relative h-10 bg-gray-200 rounded flex items-center"
+          className="relative h-10 bg-gray-200 rounded flex items-center overflow-hidden"
           style={{ width: `${width}px` }}
         >
-          {markers.map((field, idx) => {
-            const x = (clip[field] / max) * width;
+          {markers.map((field) => {
+            const x = ((clip[field] - rangeStart) / viewRange) * width;
+            const color = field === "audioStart" || field === "audioEnd" ? "blue" : "red";
             return onUpdate ? (
               <Draggable
                 key={field}
@@ -264,15 +271,37 @@ export default function ClipEditor() {
                 nodeRef={globalMarkerRefs[field] as React.RefObject<HTMLDivElement>}
                 position={{ x, y: 0 }}
                 onDrag={(_, data) => {
-                  const newValue = (data.x / width) * max;
+                  const newValue = rangeStart + (data.x / width) * viewRange;
                   onUpdate(field, parseFloat(newValue.toFixed(2)));
                 }}
               >
                 <div
                   ref={globalMarkerRefs[field]}
-                  className="w-4 h-4 rounded-full cursor-pointer absolute"
+                  className="cursor-pointer absolute"
                   style={{
-                    backgroundColor: ["green", "blue", "blue", "red"][idx],
+                    left: 0,
+                    ...(field === "start"
+                      ? {
+                          width: 0,
+                          height: 0,
+                          borderTop: "8px solid transparent",
+                          borderBottom: "8px solid transparent",
+                          borderRight: `8px solid ${color}`,
+                        }
+                      : field === "end"
+                      ? {
+                          width: 0,
+                          height: 0,
+                          borderTop: "8px solid transparent",
+                          borderBottom: "8px solid transparent",
+                          borderLeft: `8px solid ${color}`,
+                        }
+                      : {
+                          width: "16px",
+                          height: "16px",
+                          borderRadius: "9999px",
+                          backgroundColor: color,
+                        })
                   }}
                   title={field}
                 />
@@ -280,10 +309,31 @@ export default function ClipEditor() {
             ) : (
               <div
                 key={field}
-                className="w-4 h-4 rounded-full absolute"
+                className="absolute"
                 style={{
-                  backgroundColor: ["green", "blue", "blue", "red"][idx],
                   left: `${x}px`,
+                  ...(field === "start"
+                    ? {
+                        width: 0,
+                        height: 0,
+                        borderTop: "8px solid transparent",
+                        borderBottom: "8px solid transparent",
+                        borderRight: `8px solid ${color}`,
+                      }
+                    : field === "end"
+                    ? {
+                        width: 0,
+                        height: 0,
+                        borderTop: "8px solid transparent",
+                        borderBottom: "8px solid transparent",
+                        borderLeft: `8px solid ${color}`,
+                      }
+                    : {
+                        width: "16px",
+                        height: "16px",
+                        borderRadius: "9999px",
+                        backgroundColor: color,
+                      })
                 }}
                 title={field}
               />
