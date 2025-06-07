@@ -98,8 +98,15 @@ function SortableClip({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style}>
       <Card className="mt-4">
+        <div
+          className="cursor-move absolute top-2 left-2"
+          {...attributes}
+          {...listeners}
+        >
+          ☰
+        </div>
         <div className="absolute top-2 right-2 space-x-2">
           <Button
             className="text-xs px-2 py-1"
@@ -191,6 +198,7 @@ export default function ClipEditor() {
   };
 
   const deleteClip = (clipId: number) => {
+    console.log("Deleting clip with ID:", clipId);
     setClips((prev) => prev.filter((clip) => clip.id !== clipId));
   };
 
@@ -201,12 +209,11 @@ export default function ClipEditor() {
   };
 
   const confirmClip = async () => {
-    if (draftClip) {
+    if (draftClip && draftClip.videoId?.trim()) {
       let title = "Untitled Video";
       try {
-        const res = await fetch(
-          `https://noembed.com/embed?url=https://www.youtube.com/watch?v=${draftClip.videoId}`
-        );
+        const url = `https://noembed.com/embed?url=https://www.youtube.com/watch?v=${draftClip.videoId.trim()}`;
+        const res = await fetch(url);
         const data = await res.json();
         if (data.title) title = data.title;
       } catch (err) {
@@ -214,6 +221,8 @@ export default function ClipEditor() {
       }
       setClips((prev) => [...prev, { ...draftClip, title }]);
       setDraftClip(null);
+    } else {
+      console.warn("Invalid draftClip or videoId");
     }
   };
 
@@ -274,31 +283,22 @@ export default function ClipEditor() {
   };
 
   const startDraft = () => {
-    if (!videoId) return;
+    if (!videoId || !videoId.trim()) return;
+    const cleanId = videoId.trim();
     setDraftClip({
       id: Date.now(),
-      videoId,
+      videoId: cleanId,
       start: 0,
       audioStart: 2,
       audioEnd: 8,
       end: 10,
     });
-    if (
-      playerRef.current &&
-      typeof playerRef.current.loadVideoById === "function"
-    ) {
-      playerRef.current.loadVideoById(videoId);
-    }
+    playerRef.current?.loadVideoById?.(cleanId);
   };
 
   const loadClipVideo = (clipVideoId: string) => {
     setVideoId(clipVideoId);
-    if (
-      playerRef.current &&
-      typeof playerRef.current.loadVideoById === "function"
-    ) {
-      playerRef.current.loadVideoById(clipVideoId);
-    }
+    playerRef.current?.loadVideoById?.(clipVideoId);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
