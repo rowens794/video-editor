@@ -74,7 +74,7 @@ interface SortableClipProps {
   renderTimelineSlider: (
     clip: Clip,
     onUpdate?: (field: keyof Clip, value: number) => void
-  ) => JSX.Element;
+  ) => React.ReactElement;
 }
 
 function SortableClip({
@@ -144,8 +144,21 @@ export default function ClipEditor() {
   const [videoId, setVideoId] = useState<string>("");
   const [draftClip, setDraftClip] = useState<Clip | null>(null);
   const [videoDuration, setVideoDuration] = useState<number>(60);
+  // Using any because YouTube's player type definitions are not installed
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const playerRef = useRef<any>(null);
+  const timelineTimeoutRef = useRef<number | null>(null);
+  const [isTimelinePlaying, setIsTimelinePlaying] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [YT, setYT] = useState<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timelineTimeoutRef.current) {
+        clearTimeout(timelineTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const globalMarkerRefs: Record<
     string,
@@ -243,7 +256,7 @@ export default function ClipEditor() {
                 key={field}
                 axis="x"
                 bounds="parent"
-                nodeRef={globalMarkerRefs[field]}
+                nodeRef={globalMarkerRefs[field] as React.RefObject<HTMLDivElement>}
                 position={{ x, y: 0 }}
                 onDrag={(_, data) => {
                   const newValue = (data.x / 300) * max;
@@ -310,6 +323,41 @@ export default function ClipEditor() {
     }
   };
 
+  const stopTimelinePlayback = () => {
+    if (timelineTimeoutRef.current) {
+      clearTimeout(timelineTimeoutRef.current);
+      timelineTimeoutRef.current = null;
+    }
+    playerRef.current?.pauseVideo?.();
+    setIsTimelinePlaying(false);
+  };
+
+  const playTimeline = () => {
+    if (!clips.length) return;
+    let index = 0;
+    setIsTimelinePlaying(true);
+
+    const playNext = () => {
+      if (index >= clips.length) {
+        setIsTimelinePlaying(false);
+        return;
+      }
+      const clip = clips[index];
+      playerRef.current?.loadVideoById?.({
+        videoId: clip.videoId,
+        startSeconds: clip.start,
+      });
+      playerRef.current?.playVideo?.();
+      timelineTimeoutRef.current = window.setTimeout(() => {
+        index += 1;
+        playNext();
+      }, (clip.end - clip.start) * 1000);
+    };
+
+    stopTimelinePlayback();
+    playNext();
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6">
       <div className="flex space-x-2">
@@ -332,7 +380,12 @@ export default function ClipEditor() {
 
       {clips.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Timeline Clips</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Timeline Clips</h2>
+            <Button onClick={isTimelinePlaying ? stopTimelinePlayback : playTimeline}>
+              {isTimelinePlaying ? "Stop" : "Play Timeline"}
+            </Button>
+          </div>
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
