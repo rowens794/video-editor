@@ -280,29 +280,33 @@ export default function ClipEditor() {
             markers.map((field) => {
               const x = ((clip[field] - rangeStart) / viewRange) * width;
               const color = field === "audioStart" || field === "audioEnd" ? "blue" : "red";
-              const style =
-                field === "audioStart"
-                  ? {
-                      width: 0,
-                      height: 0,
-                      borderTop: "8px solid transparent",
-                      borderBottom: "8px solid transparent",
-                      borderRight: `8px solid ${color}`,
-                    }
-                  : field === "audioEnd"
-                  ? {
-                      width: 0,
-                      height: 0,
-                      borderTop: "8px solid transparent",
-                      borderBottom: "8px solid transparent",
-                      borderLeft: `8px solid ${color}`,
-                    }
-                  : {
-                      width: "16px",
-                      height: "16px",
-                      borderRadius: "9999px",
-                      backgroundColor: color,
-                    };
+              const style = (() => {
+                const arrowLeft = {
+                  width: 0,
+                  height: 0,
+                  borderTop: "8px solid transparent",
+                  borderBottom: "8px solid transparent",
+                  borderLeft: `8px solid ${color}`,
+                } as const;
+                const arrowRight = {
+                  width: 0,
+                  height: 0,
+                  borderTop: "8px solid transparent",
+                  borderBottom: "8px solid transparent",
+                  borderRight: `8px solid ${color}`,
+                } as const;
+
+                if (field === "start") return arrowRight;
+                if (field === "end") return arrowLeft;
+                if (field === "audioStart") return arrowRight;
+                if (field === "audioEnd") return arrowLeft;
+                return {
+                  width: "16px",
+                  height: "16px",
+                  borderRadius: "9999px",
+                  backgroundColor: color,
+                } as const;
+              })();
 
               return onUpdate ? (
                 <Draggable
@@ -313,7 +317,7 @@ export default function ClipEditor() {
                   position={{ x, y: 0 }}
                   onDrag={(_, data) => {
                     const newValue = rangeStart + (data.x / width) * viewRange;
-                    onUpdate(field, parseFloat(newValue.toFixed(2)));
+                    onUpdate(field, Math.max(0, Math.min(newValue, max)));
                   }}
                 >
                   <div
