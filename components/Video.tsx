@@ -240,12 +240,28 @@ export default function ClipEditor() {
     }
   };
 
-  const renderTimelineSlider = (
-    clip: Clip,
-    onUpdate?: (field: keyof Clip, value: number) => void
-  ) => {
+  const TimelineSlider = ({
+    clip,
+    onUpdate,
+  }: {
+    clip: Clip;
+    onUpdate?: (field: keyof Clip, value: number) => void;
+  }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [width, setWidth] = useState(0);
+
+    useEffect(() => {
+      const handleResize = () => {
+        if (containerRef.current) {
+          setWidth(containerRef.current.clientWidth);
+        }
+      };
+      handleResize();
+      window.addEventListener("resize", handleResize);
+      return () => window.removeEventListener("resize", handleResize);
+    }, []);
+
     const max = videoDuration;
-    const width = 300;
     const viewRange = max / timelineZoom;
     const center = (clip.start + clip.end) / 2;
     const rangeStart = Math.min(
@@ -257,88 +273,65 @@ export default function ClipEditor() {
     return (
       <div className="space-y-2">
         <div
-          className="relative h-10 bg-gray-200 rounded flex items-center overflow-hidden"
-          style={{ width: `${width}px` }}
+          ref={containerRef}
+          className="relative h-10 bg-gray-200 rounded flex items-center overflow-hidden w-full"
         >
-          {markers.map((field) => {
-            const x = ((clip[field] - rangeStart) / viewRange) * width;
-            const color = field === "audioStart" || field === "audioEnd" ? "blue" : "red";
-            return onUpdate ? (
-              <Draggable
-                key={field}
-                axis="x"
-                bounds="parent"
-                nodeRef={globalMarkerRefs[field] as React.RefObject<HTMLDivElement>}
-                position={{ x, y: 0 }}
-                onDrag={(_, data) => {
-                  const newValue = rangeStart + (data.x / width) * viewRange;
-                  onUpdate(field, parseFloat(newValue.toFixed(2)));
-                }}
-              >
-                <div
-                  ref={globalMarkerRefs[field]}
-                  className="cursor-pointer absolute"
-                  style={{
-                    left: 0,
-                    ...(field === "start"
-                      ? {
-                          width: 0,
-                          height: 0,
-                          borderTop: "8px solid transparent",
-                          borderBottom: "8px solid transparent",
-                          borderRight: `8px solid ${color}`,
-                        }
-                      : field === "end"
-                      ? {
-                          width: 0,
-                          height: 0,
-                          borderTop: "8px solid transparent",
-                          borderBottom: "8px solid transparent",
-                          borderLeft: `8px solid ${color}`,
-                        }
-                      : {
-                          width: "16px",
-                          height: "16px",
-                          borderRadius: "9999px",
-                          backgroundColor: color,
-                        })
+          {width > 0 &&
+            markers.map((field) => {
+              const x = ((clip[field] - rangeStart) / viewRange) * width;
+              const color = field === "audioStart" || field === "audioEnd" ? "blue" : "red";
+              const style =
+                field === "audioStart"
+                  ? {
+                      width: 0,
+                      height: 0,
+                      borderTop: "8px solid transparent",
+                      borderBottom: "8px solid transparent",
+                      borderRight: `8px solid ${color}`,
+                    }
+                  : field === "audioEnd"
+                  ? {
+                      width: 0,
+                      height: 0,
+                      borderTop: "8px solid transparent",
+                      borderBottom: "8px solid transparent",
+                      borderLeft: `8px solid ${color}`,
+                    }
+                  : {
+                      width: "16px",
+                      height: "16px",
+                      borderRadius: "9999px",
+                      backgroundColor: color,
+                    };
+
+              return onUpdate ? (
+                <Draggable
+                  key={field}
+                  axis="x"
+                  bounds="parent"
+                  nodeRef={globalMarkerRefs[field] as React.RefObject<HTMLDivElement>}
+                  position={{ x, y: 0 }}
+                  onDrag={(_, data) => {
+                    const newValue = rangeStart + (data.x / width) * viewRange;
+                    onUpdate(field, parseFloat(newValue.toFixed(2)));
                   }}
+                >
+                  <div
+                    ref={globalMarkerRefs[field]}
+                    className="cursor-pointer absolute"
+                    style={{ left: 0, ...style }}
+                    title={field}
+                  />
+                </Draggable>
+              ) : (
+                <div
+                  key={field}
+                  className="absolute"
+                  style={{ left: `${x}px`, ...style }}
                   title={field}
                 />
-              </Draggable>
-            ) : (
-              <div
-                key={field}
-                className="absolute"
-                style={{
-                  left: `${x}px`,
-                  ...(field === "start"
-                    ? {
-                        width: 0,
-                        height: 0,
-                        borderTop: "8px solid transparent",
-                        borderBottom: "8px solid transparent",
-                        borderRight: `8px solid ${color}`,
-                      }
-                    : field === "end"
-                    ? {
-                        width: 0,
-                        height: 0,
-                        borderTop: "8px solid transparent",
-                        borderBottom: "8px solid transparent",
-                        borderLeft: `8px solid ${color}`,
-                      }
-                    : {
-                        width: "16px",
-                        height: "16px",
-                        borderRadius: "9999px",
-                        backgroundColor: color,
-                      })
-                }}
-                title={field}
-              />
-            );
-          })}
+              );
+            })}
         </div>
         <div className="flex justify-between text-xs text-gray-500">
           <span>Start: {clip.start}s</span>
@@ -349,6 +342,11 @@ export default function ClipEditor() {
       </div>
     );
   };
+
+  const renderTimelineSlider = (
+    clip: Clip,
+    onUpdate?: (field: keyof Clip, value: number) => void
+  ) => <TimelineSlider clip={clip} onUpdate={onUpdate} />;
 
   const startDraft = () => {
     if (!videoId || !videoId.trim()) return;
