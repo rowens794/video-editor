@@ -144,6 +144,7 @@ export default function ClipEditor() {
   const [videoId, setVideoId] = useState<string>("");
   const [draftClip, setDraftClip] = useState<Clip | null>(null);
   const [videoDuration, setVideoDuration] = useState<number>(60);
+  const [timelineZoom, setTimelineZoom] = useState<number>(1);
   // Using any because YouTube's player type definitions are not installed
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const playerRef = useRef<any>(null);
@@ -244,13 +245,17 @@ export default function ClipEditor() {
     onUpdate?: (field: keyof Clip, value: number) => void
   ) => {
     const max = videoDuration;
+    const width = 300 * timelineZoom;
     const markers = ["start", "audioStart", "audioEnd", "end"] as const;
 
     return (
       <div className="space-y-2">
-        <div className="relative h-10 bg-gray-200 rounded flex items-center w-full">
+        <div
+          className="relative h-10 bg-gray-200 rounded flex items-center"
+          style={{ width: `${width}px` }}
+        >
           {markers.map((field, idx) => {
-            const x = (clip[field] / max) * 300;
+            const x = (clip[field] / max) * width;
             return onUpdate ? (
               <Draggable
                 key={field}
@@ -259,7 +264,7 @@ export default function ClipEditor() {
                 nodeRef={globalMarkerRefs[field] as React.RefObject<HTMLDivElement>}
                 position={{ x, y: 0 }}
                 onDrag={(_, data) => {
-                  const newValue = (data.x / 300) * max;
+                  const newValue = (data.x / width) * max;
                   onUpdate(field, parseFloat(newValue.toFixed(2)));
                 }}
               >
@@ -376,6 +381,29 @@ export default function ClipEditor() {
           {renderTimelineSlider(draftClip, updateDraftClip)}
           <Button onClick={confirmClip}>Add to Timeline</Button>
         </>
+      )}
+
+      {(draftClip || clips.length > 0) && (
+        <div className="flex items-center space-x-2">
+          <span className="text-sm">Zoom:</span>
+          <Button
+            className="px-2 py-1"
+            onClick={() =>
+              setTimelineZoom((z) => Math.max(0.5, parseFloat((z - 0.5).toFixed(1))))
+            }
+          >
+            -
+          </Button>
+          <span className="text-sm w-10 text-center">{(timelineZoom * 100).toFixed(0)}%</span>
+          <Button
+            className="px-2 py-1"
+            onClick={() =>
+              setTimelineZoom((z) => Math.min(5, parseFloat((z + 0.5).toFixed(1))))
+            }
+          >
+            +
+          </Button>
+        </div>
       )}
 
       {clips.length > 0 && (
